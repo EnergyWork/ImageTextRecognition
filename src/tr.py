@@ -33,7 +33,7 @@ from pywer import wer
 #     #img.show()
 
 
-path = "dataset3\\0000.jpg" # fix path
+path = "dataset3\\images\\0.jpg" # fix path
 original_image = cv2.imread(path)
 img = cv2.cvtColor(original_image, cv2.COLOR_BGR2GRAY)
 print('Image Dimensions :', img.shape, type(img))

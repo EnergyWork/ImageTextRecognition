@@ -17,6 +17,15 @@ IMAGES_DIR = 'images'
 ORIGINAL_TEXTS_DIR = 'original_texts'
 JSONS_DIR = 'jsons'
 
+def check_path(path, dir_name):
+    if not os.path.isdir(path):
+        try:
+            os.mkdir(path)
+            return True
+        except OSError as e:
+            print(f'Не удалось создать каталог {dir_name}')
+            return False
+
 def create_dataset_element(path_to_dataset, save_name=None):
     error, text = get_some_text() #получаем текст
     if not error:
@@ -66,12 +75,8 @@ def create_dataset_element(path_to_dataset, save_name=None):
         gimg = skimage.util.random_noise(img2, mode=mode) #добавляем шум на изображение
         
         path_to_images = os.path.join(path_to_dataset, IMAGES_DIR)
-        if not os.path.isdir(path_to_images):
-            try:
-                os.mkdir(path_to_images)
-            except OSError as e:
-                print(f'Не удалось создать каталог {IMAGES_DIR}')
-                return 
+        if not check_path(path_to_images, IMAGES_DIR):
+            return
 
         save_name = str(save_name) if save_name is not None else 'NoneName'
         save_image_name = save_name + '.jpg'
@@ -86,12 +91,8 @@ def create_dataset_element(path_to_dataset, save_name=None):
             return
 
         path_to_texts = os.path.join(path_to_dataset, ORIGINAL_TEXTS_DIR)
-        if not os.path.isdir(path_to_texts):
-            try:
-                os.mkdir(path_to_texts)
-            except OSError as e:
-                print(f'Не удалось создать каталог {ORIGINAL_TEXTS_DIR}')
-                return
+        if not check_path(path_to_texts, ORIGINAL_TEXTS_DIR):
+            return
 
         path_to_text = os.path.join(path_to_texts, save_text_name)
         with open(path_to_text, 'w', encoding='utf-8') as f:
@@ -106,12 +107,8 @@ def create_dataset_element(path_to_dataset, save_name=None):
         }
         
         path_to_jsons = os.path.join(path_to_dataset, JSONS_DIR)
-        if not os.path.isdir(path_to_jsons):
-            try:
-                os.mkdir(path_to_jsons)
-            except OSError as e:
-                print(f'Не удалось создать каталог {JSONS_DIR}')
-                return
+        if not check_path(path_to_jsons, JSONS_DIR):
+            return
 
         path_to_json = os.path.join(path_to_jsons, save_json_name)
         with open(path_to_json, 'w', encoding="utf-8") as f:
