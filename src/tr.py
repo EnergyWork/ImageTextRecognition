@@ -1,7 +1,7 @@
 import os
+import json
 
 import cv2
-import fastwer
 import matplotlib.pyplot as plt
 import numpy as np
 import pytesseract
@@ -32,8 +32,21 @@ from pywer import wer
 #     ##############
 #     #img.show()
 
+def split(word):
+    return [char for char in word]
 
-path = "dataset3\\images\\0.jpg" # fix path
+path_to_file = 'dataset3\\jsons\\0.json'
+output_dir = 'output'
+
+with open(path_to_file, 'r', encoding='utf-8') as f:
+    data = json.load(f)
+
+path_to_text = data['text_path']
+with open(path_to_text, 'r', encoding='utf-8') as f:
+    original_text = f.readlines()
+    original_text = ' '.join(original_text)
+
+path = data['img_path'] # fix path
 original_image = cv2.imread(path)
 img = cv2.cvtColor(original_image, cv2.COLOR_BGR2GRAY)
 print('Image Dimensions :', img.shape, type(img))
@@ -94,40 +107,30 @@ M = cv2.getRotationMatrix2D(center=center, angle=(angle), scale=1.0)
 rotated = cv2.warpAffine(th1, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE) #
 
 # show images
-cv2.imshow("Original", original_image)
-cv2.imshow('Original with GBlur+threshhold', th1)
+#cv2.imshow("Original", original_image)
+#cv2.imshow('Original with GBlur+threshhold', th1)
 cv2.imshow("Rotated", rotated)
 
-#попытки распознать текст
+#распознать текст
 pytesseract.pytesseract.tesseract_cmd = "Tesseract-OCR\\Tesseract-OCR v5\\tesseract.exe"
 print(pytesseract.get_tesseract_version())
 print(pytesseract.get_languages())
-config = "--oem 0 --psm 6"
-data = pytesseract.image_to_string(rotated, lang='rus', config=config)
-with open('output\\rec.txt', 'w+', encoding='utf-8') as f:
-    f.write(data)
+config = "--oem 3 --psm 6"
+recognized  = pytesseract.image_to_string(rotated, lang='rus', config=config)
+
+filename = '0.txt'
+path_to_savefile = os.path.join(output_dir, filename)
+with open(path_to_savefile, 'w+', encoding='utf-8') as f:
+    f.write(recognized )
+
+w_orig_text = original_text.split()
+w_r_text = recognized .split()
+wer1 = wer(w_orig_text, w_r_text)
+print('WER:', wer1)
+
+c_orig_text = split(''.join(w_orig_text))
+c_r_text = split(''.join(w_r_text))
+cer1 = wer(c_orig_text, c_r_text)
+print('CER:', cer1)
 
 cv2.waitKey()
-
-#############################TESSARACT PARAMS INFO################################################
-
-# --oem N
-# Specify OCR Engine mode. The options for N are:
-# 0 = Original Tesseract only.
-# 1 = Neural nets LSTM only.
-# 2 = Tesseract + LSTM.
-# 3 = Default, based on what is available.
-
-# --psm N
-# Set Tesseract to only run a subset of layout analysis and assume a certain form of image. The options for N are:
-# 0 = Orientation and script detection (OSD) only.
-# 1 = Automatic page segmentation with OSD.
-# 2 = Automatic page segmentation, but no OSD, or OCR.
-# 3 = Fully automatic page segmentation, but no OSD. (Default)
-# 4 = Assume a single column of text of variable sizes.
-# 5 = Assume a single uniform block of vertically aligned text.
-# 6 = Assume a single uniform block of text.
-# 7 = Treat the image as a single text line.
-# 8 = Treat the image as a single word.
-# 9 = Treat the image as a single word in a circle.
-# 10 = Treat the image as a single character.

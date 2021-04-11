@@ -19,12 +19,15 @@ JSONS_DIR = 'jsons'
 
 def check_path(path, dir_name):
     if not os.path.isdir(path):
+        print(f'Каталог {dir_name} отсутствует, пробуем создать')
         try:
             os.mkdir(path)
             return True
         except OSError as e:
             print(f'Не удалось создать каталог {dir_name}')
             return False
+    else:
+        return True
 
 def create_dataset_element(path_to_dataset, save_name=None):
     error, text = get_some_text() #получаем текст
@@ -69,7 +72,7 @@ def create_dataset_element(path_to_dataset, save_name=None):
         rotate_img = rotate_img.crop((15, 40, width-20,height-30)) #и снова обрезаем лишние зоны
 
         noise_modes = ['gaussian', 'localvar', 'poisson', 'salt', 'speckle', 's&p'] # поиграть с параметрами для разным методов, чтобы получать разные шумы
-        mode = random.choice(noise_modes);print(mode)
+        mode = random.choice(noise_modes);print(mode, end=' ')
 
         img2 = np.array(rotate_img) #преобразуем иображение в массив ndarray из PIL.Image
         gimg = skimage.util.random_noise(img2, mode=mode) #добавляем шум на изображение
@@ -78,11 +81,9 @@ def create_dataset_element(path_to_dataset, save_name=None):
         if not check_path(path_to_images, IMAGES_DIR):
             return
 
-        save_name = str(save_name) if save_name is not None else 'NoneName'
-        save_image_name = save_name + '.jpg'
-        save_json_name = save_name + '.json'
-        save_text_name = save_name + '.txt'
+        save_name = str(save_name) if save_name is not None else 'NoneName'    
 
+        save_image_name = save_name + '.jpg'
         path_to_image = os.path.join(path_to_images, save_image_name)
         try:
             skimage.io.imsave(path_to_image, (gimg*255).astype(np.uint8)) #сохраняем изображение
@@ -94,6 +95,7 @@ def create_dataset_element(path_to_dataset, save_name=None):
         if not check_path(path_to_texts, ORIGINAL_TEXTS_DIR):
             return
 
+        save_text_name = save_name + '.txt'
         path_to_text = os.path.join(path_to_texts, save_text_name)
         with open(path_to_text, 'w', encoding='utf-8') as f:
             tmp = [l+'\n' for l in wraped_text]
@@ -105,11 +107,12 @@ def create_dataset_element(path_to_dataset, save_name=None):
             "font" : font.getname()[0],
             "noise" : mode,
         }
-        
+
         path_to_jsons = os.path.join(path_to_dataset, JSONS_DIR)
         if not check_path(path_to_jsons, JSONS_DIR):
             return
 
+        save_json_name = save_name + '.json'; print(save_json_name)
         path_to_json = os.path.join(path_to_jsons, save_json_name)
         with open(path_to_json, 'w', encoding="utf-8") as f:
             json.dump(data, f)
