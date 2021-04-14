@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import string
 
 import cv2
@@ -11,15 +12,22 @@ import numpy as np
 import pytesseract
 from PIL import Image, ImageDraw
 
-from pywer import wer
+from mywer import wer
 
 
 def split(word):
     return [char for char in word]
 
 def clean_string(text, char_sentence=False):
-    text = text.split()
+    if char_sentence:
+        text = split(re.sub(r'\s+', '', text))
+    else:
+        text = text.split()
+    text = [word.lower() for word in text if word not in string.punctuation]
     return text
+
+def wer2(ref, hyp):
+    pass
 
 def recognize_function(path_to_dataset):
     path_to_file = 'dataset3\\jsons\\0.json'
@@ -111,15 +119,15 @@ def recognize_function(path_to_dataset):
     with open(path_to_savefile, 'w', encoding='utf-8') as f:
         f.write(recognized )
 
-    w_orig_text = original_text.lower().split()
-    w_r_text = recognized.lower().split()
-    wer1 = wer(w_orig_text, w_r_text)
+    w_orig_text = clean_string(original_text) # original_text.lower().split()
+    w_r_text = clean_string(recognized) # recognized.lower().split()
+    wer1 = wer(w_orig_text, w_r_text) / max(len(w_orig_text), len(w_r_text))
     print('WER:', wer1, fastwer.score(w_r_text, w_orig_text), jiwer.wer(w_orig_text, w_r_text))
 
-    c_orig_text = split(''.join(w_orig_text).lower())
-    c_r_text = split(''.join(w_r_text).lower())
-    cer1 = wer(c_orig_text, c_r_text)
-    print('CER:', cer1, fastwer.score(w_r_text, w_orig_text, char_level=True), jiwer.wer(c_orig_text, c_r_text))
+    c_orig_text = clean_string(original_text, char_sentence=True) # split(''.join(w_orig_text).lower())
+    c_r_text = clean_string(recognized, char_sentence=True) # split(''.join(w_r_text).lower())
+    cer1 = wer(c_orig_text, c_r_text) / max(len(c_orig_text), len(c_r_text))
+    print('CER:', cer1, fastwer.score(c_r_text, c_orig_text, char_level=True), jiwer.wer(c_orig_text, c_r_text))
 
     data['metrics'] = {
         'wer' : int(wer1),
@@ -132,6 +140,22 @@ def main():
     path_to_dataset = 'dataset3'
     recognize_function(path_to_dataset)
 
+def test_wer():
+    h = clean_string('Mathworks connection programs', char_sentence=True);print(h)
+    r = clean_string('MathWorks Connections Program in coal', char_sentence=True);print(r)
+    print(len('Mathworks connection programs'), len('MathWorks Connections Program in coal'))
+    print(len(h), len(r))
+    import timeit
+
+    res = timeit.timeit('wer(r, h) / len(r)', setup='from mywer import wer', number=1000, globals = locals()) #x1
+    print(wer(r, h) / len(r), res)
+
+    res = timeit.timeit('jiwer.wer(r, h)', setup='import jiwer', number=1000, globals = locals()) #x4
+    print(jiwer.wer(r, h), res)
+
+    res = timeit.timeit('fastwer.score(h, r)', setup='import fastwer', number=1000, globals = locals()) #x28
+    print(fastwer.score(h, r, char_level=True), res)
 
 if __name__ == '__main__':
-    main()
+    # main()
+    test_wer()

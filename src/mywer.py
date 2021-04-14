@@ -25,7 +25,7 @@ def wer(r, h):
     """
     # initialisation
     import numpy
-
+    
     d = numpy.zeros((len(r) + 1) * (len(h) + 1), dtype=numpy.uint8)
     d = d.reshape((len(r) + 1, len(h) + 1))
     for i in range(len(r) + 1):
