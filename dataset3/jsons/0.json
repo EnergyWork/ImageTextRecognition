@@ -1,1 +1,0 @@
-{"img_path": "dataset3\\images\\0.jpg", "text_path": "dataset3\\original_texts\\0.txt", "font": "AG_Cooper", "noise": "gaussian", "metrics": {"wer": 67, "cer": 91}}

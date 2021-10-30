@@ -1,32 +1,18 @@
-def wer(r, h):
-    """
-    Calculation of WER with Levenshtein distance.
+import re
 
-    Works only for iterables up to 254 elements (uint8).
-    O(nm) time ans space complexity.
+import Levenshtein
+import numpy as np
 
-    Parameters
-    ----------
-    r : list
-    h : list
 
-    Returns
-    -------
-    int
+def to_char_sentence(words):
+    return list(''.join(words))
 
-    Examples
-    --------
-    >>> wer("who is there".split(), "is there".split())
-    1
-    >>> wer("who is there".split(), "".split())
-    3
-    >>> wer("".split(), "who is there".split())
-    3
-    """
-    # initialisation
-    import numpy
-    
-    d = numpy.zeros((len(r) + 1) * (len(h) + 1), dtype=numpy.uint8)
+def wer1(r, h, char_level=False):   
+    if char_level:
+        r = to_char_sentence(r)
+        h = to_char_sentence(h)
+
+    d = np.zeros((len(r) + 1) * (len(h) + 1), dtype=np.uint8)
     d = d.reshape((len(r) + 1, len(h) + 1))
     for i in range(len(r) + 1):
         for j in range(len(h) + 1):
@@ -35,7 +21,6 @@ def wer(r, h):
             elif j == 0:
                 d[i][0] = i
 
-    # computation
     for i in range(1, len(r) + 1):
         for j in range(1, len(h) + 1):
             if r[i - 1] == h[j - 1]:
@@ -46,4 +31,15 @@ def wer(r, h):
                 deletion = d[i - 1][j] + 1
                 d[i][j] = min(substitution, insertion, deletion)
 
-    return d[len(r)][len(h)]
+    return d[len(r)][len(h)] / len(r)
+
+def wer2(r, h, char_level=False):
+    error = 0
+    for i in range(min(len(r), len(h))):
+        error += Levenshtein.distance(r[i], h[i])
+
+    if char_level:
+        r = to_char_sentence(r)
+        h = to_char_sentence(h)
+
+    return (error + abs(len(r) - len(r))) / len(r)

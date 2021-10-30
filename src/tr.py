@@ -12,26 +12,37 @@ import numpy as np
 import pytesseract
 from PIL import Image, ImageDraw
 
-from mywer import wer
+import mywer
 
 
-def split(word):
-    return [char for char in word]
+JSONS_DIR = 'jsons'
+RECOGNIZED_DIR = 'recognized_text'
+ROTATED_IMAGES_DIR = 'rotated_images'
+TESSERACT_EXEC = "Tesseract-OCR\\Tesseract-OCR v5\\tesseract.exe"
 
-def clean_string(text, char_sentence=False):
-    if char_sentence:
-        text = split(re.sub(r'\s+', '', text))
-    else:
-        text = text.split()
+def clean_string(text):
+    text = re.sub(r'\s+', ' ', text)
+    text = text.split()
     text = [word.lower() for word in text if word not in string.punctuation]
     return text
 
-def wer2(ref, hyp):
-    pass
+def recognize_function(path_to_dataset, json_file, detect_text_method=1, engine=0):
+    """
+    Recognize function
 
-def recognize_function(path_to_dataset):
-    path_to_file = 'dataset3\\jsons\\0.json'
-    output_dir = 'dataset3\\recognized_text'
+    Args:
+        - path_to_dataset - path to dataset
+        - json_file - name of json file
+        - detect_text_method - 1 or 2
+        - engine - 0, 1, 2
+    
+    Returns: 
+        - None
+    """
+
+    path_to_file = os.path.join(path_to_dataset, JSONS_DIR, json_file) #'dataset3\\jsons\\filename.json'
+    output_dir = os.path.join(path_to_dataset, RECOGNIZED_DIR) #'dataset3\\recognized_text'
+    path_to_rotated_images_dir = os.path.join(path_to_dataset, ROTATED_IMAGES_DIR) # 'dataset3\\rotated_images'
 
     with open(path_to_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
@@ -44,9 +55,11 @@ def recognize_function(path_to_dataset):
     path = data['img_path']
     original_image = cv2.imread(path)
     img = cv2.cvtColor(original_image, cv2.COLOR_BGR2GRAY)
-    print('Image Dimensions :', img.shape, type(img))
+    #print('Image Dimensions :', img.shape, type(img))
 
     blur = cv2.GaussianBlur(img, (3, 3), sigmaX=1)
+    #blur = cv2.medianBlur(img, 3)
+    #blur = cv2.bilateralFilter(img, 3, 3, 3)
     ret1, th1 = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
     mask = cv2.inRange(blur, 0, 150) #маска для инверсии
@@ -84,9 +97,15 @@ def recognize_function(path_to_dataset):
     # Работает только для синтетического датасета.
     # coords - через маску для отсечения пикселей не проходящик через порог
     # points - через поиск контуров и отсечение контуров с маленькой площадью, в итоге будут контуры текста
-    rect = cv2.minAreaRect(points) # coords
-    angle = rect[2] # 
-    print("[PRE-INFO] angle: {:.3f}".format(angle))
+    if detect_text_method == 1:
+        rect = cv2.minAreaRect(points)
+    elif detect_text_method == 2:
+        rect = cv2.minAreaRect(coords)
+    else:
+        rect = cv2.minAreaRect(points)
+    
+    angle = rect[2]
+    #print("[PRE-INFO] angle: {:.3f}".format(angle))
     (h, w) = cv2.boxPoints(rect).shape[:2] # box = np.int0(box)
     if angle < 45:
         h, w = w, h
@@ -94,13 +113,16 @@ def recognize_function(path_to_dataset):
         angle = (90 - angle)
     else:
         angle = -angle
-    print("[INFO] angle: {:.3f}".format(angle))
+    #print("[INFO] angle: {:.3f}".format(angle))
 
     (h, w) = th1.shape[:2]
     center = (w // 2, h // 2)
     M = cv2.getRotationMatrix2D(center=center, angle=(angle), scale=1.0)
-    rotated = cv2.warpAffine(th1, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE) #
-    cv2.imwrite('dataset3\\roteted_images\\0.jpg', rotated)
+    rotated = cv2.warpAffine(th1, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+
+    filename = json_file.split('.')[0] + '.jpg'
+    path_to_rot_img = os.path.join(path_to_rotated_images_dir, filename)
+    cv2.imwrite(path_to_rot_img, rotated)
 
     # show images
     #cv2.imshow("Original", original_image)
@@ -108,54 +130,38 @@ def recognize_function(path_to_dataset):
     #cv2.imshow("Rotated", rotated)
 
     #распознать текст
-    pytesseract.pytesseract.tesseract_cmd = "Tesseract-OCR\\Tesseract-OCR v5\\tesseract.exe"
-    print(pytesseract.get_tesseract_version())
-    print(pytesseract.get_languages())
-    config = "--oem 0 --psm 6"
+    pytesseract.pytesseract.tesseract_cmd = TESSERACT_EXEC
+    #print(pytesseract.get_tesseract_version())
+    #print(pytesseract.get_languages())
+    config = f"--oem {engine} --psm 6"
     recognized  = pytesseract.image_to_string(rotated, lang='rus', config=config)
 
-    filename = '0.txt'
+    filename = json_file.split('.')[0] + '.txt'
     path_to_savefile = os.path.join(output_dir, filename)
     with open(path_to_savefile, 'w', encoding='utf-8') as f:
-        f.write(recognized )
+        f.write(recognized)
 
-    w_orig_text = clean_string(original_text) # original_text.lower().split()
-    w_r_text = clean_string(recognized) # recognized.lower().split()
-    wer1 = wer(w_orig_text, w_r_text) / max(len(w_orig_text), len(w_r_text))
-    print('WER:', wer1, fastwer.score(w_r_text, w_orig_text), jiwer.wer(w_orig_text, w_r_text))
+    # считаем метрики и записываем в джейсон
+    orig_text = clean_string(original_text) 
+    rec_text = clean_string(recognized)
+    wer0 = mywer.wer2(orig_text, rec_text)
+    cer0 =  mywer.wer2(orig_text, rec_text, char_level=True)
 
-    c_orig_text = clean_string(original_text, char_sentence=True) # split(''.join(w_orig_text).lower())
-    c_r_text = clean_string(recognized, char_sentence=True) # split(''.join(w_r_text).lower())
-    cer1 = wer(c_orig_text, c_r_text) / max(len(c_orig_text), len(c_r_text))
-    print('CER:', cer1, fastwer.score(c_r_text, c_orig_text, char_level=True), jiwer.wer(c_orig_text, c_r_text))
+    print(f'WER: {wer0} CER: {cer0}; lenghts: original = {len(orig_text)}, recognized = {len(rec_text)}')
 
-    data['metrics'] = {
-        'wer' : int(wer1),
-        'cer' : int(cer1)
-    }
+    engine_type = 'baseline'
+
+    data['metrics'][engine_type] = { 'wer' : wer0, 'cer' : cer0 }
     with open(path_to_file, 'w', encoding='utf-8') as f:
-        json.dump(data, f)
+        json.dump(data, f, indent=4, ensure_ascii=False)
 
 def main():
     path_to_dataset = 'dataset3'
-    recognize_function(path_to_dataset)
-
-def test_wer():
-    h = clean_string('Mathworks connection programs', char_sentence=True);print(h)
-    r = clean_string('MathWorks Connections Program in coal', char_sentence=True);print(r)
-    print(len('Mathworks connection programs'), len('MathWorks Connections Program in coal'))
-    print(len(h), len(r))
-    import timeit
-
-    res = timeit.timeit('wer(r, h) / len(r)', setup='from mywer import wer', number=1000, globals = locals()) #x1
-    print(wer(r, h) / len(r), res)
-
-    res = timeit.timeit('jiwer.wer(r, h)', setup='import jiwer', number=1000, globals = locals()) #x4
-    print(jiwer.wer(r, h), res)
-
-    res = timeit.timeit('fastwer.score(h, r)', setup='import fastwer', number=1000, globals = locals()) #x28
-    print(fastwer.score(h, r, char_level=True), res)
+    path_to_jsons = os.path.join(path_to_dataset, JSONS_DIR)
+    jsons_files = [json_file for json_file in os.listdir(path_to_jsons) if json_file.endswith('.json')]
+    print(jsons_files)
+    for json_file in jsons_files:
+        recognize_function(path_to_dataset, json_file, detect_text_method=1)
 
 if __name__ == '__main__':
-    # main()
-    test_wer()
+    main()

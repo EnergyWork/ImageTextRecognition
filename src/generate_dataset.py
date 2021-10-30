@@ -29,7 +29,7 @@ def check_path(path, dir_name):
     else:
         return True
 
-def create_dataset_element(path_to_dataset, save_name=None):
+def create_dataset_element(path_to_dataset, save_name='unnamend'):
     error, text = get_some_text() #получаем текст
     if not error:
         img = Image.new('RGB', (1000, 1000), color='white') #создаем изображение с белым фоном
@@ -61,7 +61,7 @@ def create_dataset_element(path_to_dataset, save_name=None):
             offset += font.getsize(line)[1] + 5 # делая отступ по вертикали
 
         width, height = img.size
-        max_len_line = sorted(wraped_text, key=(lambda x : len(x)), reverse=True)[0]
+        max_len_line = sorted(wraped_text, key=(lambda x : len(x)), reverse=True)[0] # длина самой длинной строки
         max_width = font.getlength(max_len_line)
         img = img.crop((0, 0, max_width + margin, offset + 50)) #обрезаем лишний белый фон
 
@@ -72,16 +72,15 @@ def create_dataset_element(path_to_dataset, save_name=None):
         rotate_img = rotate_img.crop((15, 40, width-20,height-30)) #и снова обрезаем лишние зоны
 
         noise_modes = ['gaussian', 'localvar', 'poisson', 'salt', 'speckle', 's&p'] # поиграть с параметрами для разным методов, чтобы получать разные шумы
-        mode = random.choice(noise_modes);print(mode, end=' ')
+        mode = random.choice(noise_modes)
+        print(mode, end=' ')
 
         img2 = np.array(rotate_img) #преобразуем иображение в массив ndarray из PIL.Image
         gimg = skimage.util.random_noise(img2, mode=mode) #добавляем шум на изображение
         
         path_to_images = os.path.join(path_to_dataset, IMAGES_DIR)
         if not check_path(path_to_images, IMAGES_DIR):
-            return
-
-        save_name = str(save_name) if save_name is not None else 'NoneName'    
+            return 
 
         save_image_name = save_name + '.jpg'
         path_to_image = os.path.join(path_to_images, save_image_name)
@@ -115,7 +114,7 @@ def create_dataset_element(path_to_dataset, save_name=None):
         save_json_name = save_name + '.json'; print(save_json_name)
         path_to_json = os.path.join(path_to_jsons, save_json_name)
         with open(path_to_json, 'w', encoding="utf-8") as f:
-            json.dump(data, f)
+            json.dump(data, f, indent=4, ensure_ascii=False)
 
     else:
         print(f"Error: {text}") 
@@ -125,6 +124,6 @@ if __name__ == "__main__":
     if not os.path.isdir(path_to_dataset):
         print('Неверно указан путь')
     else:
-        for i in np.arange(0, 1):
+        for i in np.arange(0, 10):
             sleep(0.1)
             create_dataset_element(path_to_dataset=path_to_dataset, save_name=i)
