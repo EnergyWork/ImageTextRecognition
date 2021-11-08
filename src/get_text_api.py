@@ -1,3 +1,5 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 #РЫБАТЕКСТ - fish-text.ru
 
 import requests
@@ -31,6 +33,12 @@ fishtext_errors = {
 }
 
 def get_some_text():
+    """
+    функция возвращает один абзац текста
+        - return tuple:
+            - error : true/false
+            - text : текст ошибки либо абзац текста
+    """
     error = False
     text = ''
     try:
@@ -51,6 +59,7 @@ def get_some_text():
     finally:
         return (error, text)
 
+#test
 if __name__ == '__main__':
     text = get_some_text()[1]
     with open('ttt.txt', 'w', encoding='utf-8') as f:

@@ -1,20 +1,38 @@
 --oem N
-Specify OCR Engine mode. The options for N are:
-0 = Original Tesseract only.
-1 = Neural nets LSTM only.
-2 = Tesseract + LSTM.
-3 = Default, based on what is available.
+    Specify OCR Engine mode. The options for N are:
+    0 = Original Tesseract only.
+    1 = Neural nets LSTM only.
+    2 = Tesseract + LSTM.
+    3 = Default, based on what is available.
 
 --psm N
-Set Tesseract to only run a subset of layout analysis and assume a certain form of image. The options for N are:
-0 = Orientation and script detection (OSD) only.
-1 = Automatic page segmentation with OSD.
-2 = Automatic page segmentation, but no OSD, or OCR.
-3 = Fully automatic page segmentation, but no OSD. (Default)
-4 = Assume a single column of text of variable sizes.
-5 = Assume a single uniform block of vertically aligned text.
-6 = Assume a single uniform block of text.
-7 = Treat the image as a single text line.
-8 = Treat the image as a single word.
-9 = Treat the image as a single word in a circle.
-10 = Treat the image as a single character.
+    Set Tesseract to only run a subset of layout analysis and assume a certain form of image. The options for N are:
+    0 = Orientation and script detection (OSD) only.
+    1 = Automatic page segmentation with OSD.
+    2 = Automatic page segmentation, but no OSD, or OCR.
+    3 = Fully automatic page segmentation, but no OSD. (Default)
+    4 = Assume a single column of text of variable sizes.
+    5 = Assume a single uniform block of vertically aligned text.
+    6 = Assume a single uniform block of text.
+    7 = Treat the image as a single text line.
+    8 = Treat the image as a single word.
+    9 = Treat the image as a single word in a circle.
+    10 = Treat the image as a single character.
+
+Single options:
+  -h, --help            Show minimal help message.
+  --help-extra          Show extra help for advanced users.
+  --help-psm            Show page segmentation modes.
+  --help-oem            Show OCR Engine modes.
+  -v, --version         Show version information.
+  --list-langs          List available languages for tesseract engine.
+  --print-parameters    Print tesseract parameters.
+
+--tessdata-dir PATH
+    Specify the location of tessdata path.
+
+--user-patterns FILE
+    Specify the location of user patterns file.
+
+--user-words FILE
+    Specify the location of user words file.

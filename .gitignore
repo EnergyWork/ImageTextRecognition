@@ -1,6 +1,9 @@
 Tesseract-OCR
-dataset3
+dataset*
 recovery_dataset3
+output
+fonts
+*.log
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

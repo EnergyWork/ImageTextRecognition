@@ -42,4 +42,4 @@ def wer2(r, h, char_level=False):
         r = to_char_sentence(r)
         h = to_char_sentence(h)
 
-    return (error + abs(len(r) - len(r))) / len(r)
+    return (error + abs(len(h) - len(r))) / len(r)

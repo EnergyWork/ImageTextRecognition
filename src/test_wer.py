@@ -20,19 +20,21 @@ def test_wer():
     print(len(h), len(r))
     import timeit
 
-    char = True
+    char = False
+    number = 100000
     res = ''
 
-    res = timeit.timeit('mywer.wer1(r, h)', setup='import mywer', number=10000, globals = locals()) 
+    res = timeit.timeit('mywer.wer1(r, h)', setup='import mywer', number=number, globals = locals()) 
     print(mywer.wer1(r, h, char_level=char), res)
 
-    res = timeit.timeit('mywer.wer2(r, h)', setup='import mywer', number=10000, globals = locals()) 
+    res = timeit.timeit('mywer.wer2(r, h)', setup='import mywer', number=number, globals = locals()) 
     print(mywer.wer2(r, h, char_level=char), res)
 
-    res = timeit.timeit('jiwer.wer(r, h)', setup='import jiwer', number=10000, globals = locals())
+    res = timeit.timeit('jiwer.wer(r, h)', setup='import jiwer', number=number, globals = locals())
     print(jiwer.wer(r if not char else list(''.join(r)), h if not char else list(''.join(h))), res)
 
-    res = timeit.timeit('fastwer.score(h, r)', setup='import fastwer', number=10000, globals = locals())
+    res = timeit.timeit('fastwer.score(h, r)', setup='import fastwer', number=number, globals = locals())
     print(fastwer.score(h, r, char_level=char), res)
 
-test_wer()
+if __name__ == "__main__":
+    test_wer()
