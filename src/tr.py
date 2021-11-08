@@ -18,8 +18,6 @@ from logger.logger import Logger
 
 import mywer
 
-
-#JSONS_DIR = 'jsons'
 DATASET_JSON = 'dataset_info.json'
 RECOGNIZED_DIR = 'recognized_text'
 ROTATED_IMAGES_DIR = 'rotated_images'
@@ -170,7 +168,7 @@ def recognize_function(path_to_dataset, json_file, detect_text_method=1, engine=
 def main():
     log.Warning("#"*100)
     log.Info('pytesseract ver. ' + str(pytesseract.get_tesseract_version()))
-    
+
     path_to_dataset = 'dataset'
     dataset_info_path = os.path.join(path_to_dataset, DATASET_JSON)
     log.Info(dataset_info_path)
