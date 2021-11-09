@@ -5,6 +5,7 @@ import json
 import os
 import re
 import string
+import sys
 
 import cv2
 import fastwer
@@ -18,6 +19,13 @@ from logger.logger import Logger
 
 import mywer
 
+JPG = '.jpg'
+TXT = '.txt'
+JSON = '.json'
+
+SUCCESS = 0
+FAILURE = 1
+
 DATASET_JSON = 'dataset_info.json'
 RECOGNIZED_DIR = 'recognized_text'
 ROTATED_IMAGES_DIR = 'rotated_images'
@@ -26,33 +34,40 @@ TESSERACT_EXEC = "Tesseract-OCR\\Tesseract-OCR v5\\tesseract.exe"
 log = Logger(logfile=f'{__file__}.log')
 pytesseract.pytesseract.tesseract_cmd = TESSERACT_EXEC
 
+def check_path(path):
+    if not os.path.isdir(path):
+        log.Warning(f'The {path} directory is missing, we are trying to create')
+        try:
+            os.mkdir(path)
+        except OSError as e:
+            log.Error(f'Failed to create directory {path}: {e}')
+            sys.exit(FAILURE)
+
 def clean_string(text):
     text = re.sub(r'\s+', ' ', text)
     text = text.split()
     text = [word.lower() for word in text if word not in string.punctuation]
     return text
 
-def recognize_function(path_to_dataset, json_file, detect_text_method=1, engine=0):
+def recognize_function(path_to_dataset, data, detect_text_method=1, engine=0):
     """
     Recognize function
 
     Args:
-        - path_to_dataset - path to dataset
-        - json_file - name of json file
-        - detect_text_method - 1 or 2
-        - engine - 0, 1, 2
+        - path_to_dataset : path to dataset
+        - data : name of json file
+        - detect_text_method : 1 or 2
+        - engine : 0, 1, 2
     
     Returns: 
-        - None
+        - dict : metrics -> {"engine_type":{"wer":0, "cer":0}}
     """
     try:
        
-        path_to_file = os.path.join(path_to_dataset, JSONS_DIR, json_file) #'dataset3\\jsons\\filename.json'
-        output_dir = os.path.join(path_to_dataset, RECOGNIZED_DIR) #'dataset3\\recognized_text'
-        path_to_rotated_images_dir = os.path.join(path_to_dataset, ROTATED_IMAGES_DIR) # 'dataset3\\rotated_images'
-
-        with open(path_to_file, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        output_dir = os.path.join(path_to_dataset, RECOGNIZED_DIR) #'dataset\\recognized_text'
+        check_path(output_dir)
+        path_to_rotated_images_dir = os.path.join(path_to_dataset, ROTATED_IMAGES_DIR) # 'dataset\\rotated_images'
+        check_path(path_to_rotated_images_dir)
 
         path_to_text = data['text_path']
         with open(path_to_text, 'r', encoding='utf-8') as f:
@@ -62,6 +77,7 @@ def recognize_function(path_to_dataset, json_file, detect_text_method=1, engine=
         path = data['img_path']
         original_image = cv2.imread(path)
         img = cv2.cvtColor(original_image, cv2.COLOR_BGR2GRAY)
+        log.Info("Convert image from RGB to GRAY")
         #print('Image Dimensions :', img.shape, type(img))
 
         blur = cv2.GaussianBlur(img, (3, 3), sigmaX=1)
@@ -108,10 +124,11 @@ def recognize_function(path_to_dataset, json_file, detect_text_method=1, engine=
         elif detect_text_method == 2:
             rect = cv2.minAreaRect(coords)
         else:
+            log.Warning(f"Unknown text detection method, the default method will be applied")
             rect = cv2.minAreaRect(points)
         
         angle = rect[2]
-        #print("[PRE-INFO] angle: {:.3f}".format(angle))
+        log.Info("Text rotation angle: {:.3f}".format(angle))
         (h, w) = cv2.boxPoints(rect).shape[:2] # box = np.int0(box)
         if angle < 45:
             h, w = w, h
@@ -119,16 +136,17 @@ def recognize_function(path_to_dataset, json_file, detect_text_method=1, engine=
             angle = (90 - angle)
         else:
             angle = -angle
-        #print("[INFO] angle: {:.3f}".format(angle))
+        log.Info("The angle at which the text was rotated: {:.3f}".format(angle))
 
         (h, w) = th1.shape[:2]
         center = (w // 2, h // 2)
         M = cv2.getRotationMatrix2D(center=center, angle=(angle), scale=1.0)
         rotated = cv2.warpAffine(th1, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
 
-        filename = json_file.split('.')[0] + '.jpg'
+        filename = data['id'] + JPG
         path_to_rot_img = os.path.join(path_to_rotated_images_dir, filename)
-        cv2.imwrite(path_to_rot_img, rotated)
+        log.Info("Writing an image with aligned text to a directory")
+        cv2.imwrite(path_to_rot_img, rotated) # запись изображения в каталог
 
         # show images
         #cv2.imshow("Original", original_image)
@@ -136,47 +154,65 @@ def recognize_function(path_to_dataset, json_file, detect_text_method=1, engine=
         #cv2.imshow("Rotated", rotated)
 
         #распознать текст
-        #pytesseract.pytesseract.tesseract_cmd = TESSERACT_EXEC
-        #print(pytesseract.get_tesseract_version())
-        #print(pytesseract.get_languages())
         config = f"--oem {engine} --psm 6"
-        log.Info("current config: " + config)
-        recognized  = pytesseract.image_to_string(rotated, lang='rus', config=config)
+        log.Info("Config(tesseract) for recognition: " + config)
+        recognized = pytesseract.image_to_string(rotated, lang='rus', config=config)
 
-        filename = json_file.split('.')[0] + '.txt'
+        filename = data["id"] + TXT
         path_to_savefile = os.path.join(output_dir, filename)
+        log.Info("Writing recognized text to a directory")
         with open(path_to_savefile, 'w', encoding='utf-8') as f:
             f.write(recognized)
 
         # считаем метрики и записываем в джейсон
         orig_text = clean_string(original_text) 
         rec_text = clean_string(recognized)
+
         wer0 = mywer.wer2(orig_text, rec_text)
         cer0 =  mywer.wer2(orig_text, rec_text, char_level=True)
 
-        print(f'WER: {wer0} CER: {cer0}; lenghts: original = {len(orig_text)}, recognized = {len(rec_text)}')
+        log.Info(f'Metrics: WER: {wer0} CER: {cer0}; lenghts: original = {len(orig_text)}, recognized = {len(rec_text)}')
 
         engine_type = 'baseline'
+        
+        # genius's switch
+        if engine==1:
+            pass
+        elif engine==2:
+            pass
+        elif engine==3:
+            pass
 
-        data['metrics'][engine_type] = { 'wer' : wer0, 'cer' : cer0 }
-        with open(path_to_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4, ensure_ascii=False)
+        ret = { engine_type : { 'wer' : wer0, 'cer' : cer0 } }
+        log.Info(f'return: {ret}')
+        return ret
 
+
+    #except OSError as e: 
+    #    log.Error(f'{e.__class__}: {e.__str__}')
     except Exception as e:
-        log.Error(e.__str__)
+        log.Error(f'{e.__class__}: {e.__str__}')
 
 def main():
     log.Warning("#"*100)
-    log.Info('pytesseract ver. ' + str(pytesseract.get_tesseract_version()))
+    log.Info('pytesseract var. : ' + str(pytesseract.get_tesseract_version()))
 
     path_to_dataset = 'dataset'
     dataset_info_path = os.path.join(path_to_dataset, DATASET_JSON)
     log.Info(dataset_info_path)
+
     with open(dataset_info_path, 'r', encoding='utf-8') as f:
         dataset_info = json.load(f)
+
     for element in dataset_info:
-        #recognize_function(path_to_dataset, json_file, detect_text_method=1)
-        log.Info(element)
+        log.Info(f'Current element: {element}')
+        metrics = recognize_function(path_to_dataset, element, detect_text_method=1, engine=0)
+        element["metrics"].update(metrics)
+
+    log.Info(dataset_info)
+
+    with open(dataset_info_path, 'w', encoding='utf-8') as f:
+        json.dump(dataset_info, f, indent=4, ensure_ascii=False)
 
 if __name__ == '__main__':
     main()

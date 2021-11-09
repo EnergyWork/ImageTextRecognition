@@ -25,7 +25,7 @@ IMAGES_DIR = 'images'
 ORIGINAL_TEXTS_DIR = 'original_texts'
 DATASET_JSON = 'dataset_info.json'
 
-COUNT_OF_DATASET_ELEMENTS = 2
+COUNT_OF_DATASET_ELEMENTS = 1
 SLEEP_TIME = 0.1 # because fish-text.ru could ban, min: 0.1
 
 SUCCESS = 0
@@ -44,9 +44,12 @@ def check_path(path, dir_name='DIR'):
 
 def create_dataset_element(path_to_dataset, save_name='unnamend'):
     """
-    функция для создания однгого элемента датасета
+    Функция для создания однгого элемента датасета
         - path_to_dataset : путь до каталога, в который складывайть данные
         - save_name : имя для данных элемента датасета
+
+    return:
+        - dict
     """
 
     log.Info(f'generate dataset element: {save_name}')
@@ -125,6 +128,7 @@ def create_dataset_element(path_to_dataset, save_name='unnamend'):
         "text_path" : path_to_text,
         "font" : font.getname()[0],
         "noise" : mode,
+        "metrics" : {},
     }
 
     '''path_to_jsons = os.path.join(path_to_dataset, JSONS_DIR)
@@ -148,8 +152,9 @@ if __name__ == "__main__":
     elements_dict = []
     for i in np.arange(0, COUNT_OF_DATASET_ELEMENTS):
         sleep(SLEEP_TIME)
-        element_dict = create_dataset_element(path_to_dataset=path_to_dataset, save_name=str(i))
-        elements_dict.append({ str(i) : element_dict})
+        element_dict = { "id" : str(i) }
+        element_dict.update(create_dataset_element(path_to_dataset=path_to_dataset, save_name=str(i)))
+        elements_dict.append(element_dict)
     
     try:
         
