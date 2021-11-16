@@ -1,4 +1,4 @@
-import os, json
+import os, json, sys
 import numpy as np
 from logger.logger import Logger
 
@@ -21,6 +21,7 @@ def get_metrics(engine='Legacy'):
             CERs.append(data['metrics'][engine]['cer'])
     except KeyError as ke:
         log.Info(f'unknown key : {str(ke)}')
+        sys.exit(1)
 
 def main():
     # engine_type = 'Legacy'
