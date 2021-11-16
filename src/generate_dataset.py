@@ -25,9 +25,6 @@ IMAGES_DIR = 'images'
 ORIGINAL_TEXTS_DIR = 'original_texts'
 DATASET_JSON = 'dataset_info.json'
 
-COUNT_OF_DATASET_ELEMENTS = 1
-SLEEP_TIME = 0.1 # because fish-text.ru could ban, min: 0.1
-
 SUCCESS = 0
 FAILURE = 1
 
@@ -57,6 +54,7 @@ def create_dataset_element(path_to_dataset, save_name='unnamend'):
     error, text = get_some_text() #получаем текст
     if error:
         log.Error(text)
+        sys.exit(1)
 
     img = Image.new('RGB', (1000, 1000), color='white') #создаем изображение с белым фоном
     try:
@@ -79,7 +77,8 @@ def create_dataset_element(path_to_dataset, save_name='unnamend'):
 
     draw = ImageDraw.Draw(img) #объект для рисования
     
-    margin = offset = 50 #начальный отступ слева и свкрху
+    margin = 50
+    offset = 50 #начальный отступ слева и свкрху
     line_width = 60 #количество символов в строке
     wraped_text = textwrap.wrap(text, width=line_width)
     for line in wraped_text: #разделяем текст на строки
@@ -87,9 +86,9 @@ def create_dataset_element(path_to_dataset, save_name='unnamend'):
         offset += font.getsize(line)[1] + 5 # делая отступ по вертикали
 
     width, height = img.size
-    max_len_line = sorted(wraped_text, key=(lambda x : len(x)), reverse=True)[0] # длина самой длинной строки # ? чо???? хахаха что за бред??? просто np.max(wraped_text)????
+    max_len_line = sorted(wraped_text, key=(lambda x : len(x)), reverse=True)[0]
     max_width = font.getlength(max_len_line)
-    img = img.crop((0, 0, max_width + margin, offset + 50)) #обрезаем лишний белый фон
+    img = img.crop((0, 0, max_width + margin+10, offset + 50)) #обрезаем лишний белый фон
 
     angle = random.randint(-45, 45) #разброс угла поворота текста
     rotate_img = img.rotate(angle=angle, expand=True, fillcolor='white') #поворочиваем текст
@@ -97,7 +96,7 @@ def create_dataset_element(path_to_dataset, save_name='unnamend'):
     width, height = rotate_img.size 
     rotate_img = rotate_img.crop((15, 40, width-20,height-30)) #и снова обрезаем лишние зоны
 
-    noise_modes = ['gaussian', 'localvar', 'poisson', 'salt', 'speckle', 's&p'] # поиграть с параметрами для разным методов, чтобы получать разные шумы
+    noise_modes = ['gaussian', 'salt', 'speckle', 's&p']
     mode = random.choice(noise_modes)
 
     img2 = np.array(rotate_img) #преобразуем иображение в массив ndarray из PIL.Image
@@ -110,8 +109,8 @@ def create_dataset_element(path_to_dataset, save_name='unnamend'):
     path_to_image = os.path.join(path_to_images, save_image_name)
     try:
         skimage.io.imsave(path_to_image, (gimg*255).astype(np.uint8)) #сохраняем изображение
-    except Exception:
-        log.Error(f'Не удалось сохранить изображение {save_image_name}')
+    except Exception as e:
+        log.Error(f'Не удалось сохранить изображение {save_image_name}; {e}')
         sys.exit(1)
 
     path_to_texts = os.path.join(path_to_dataset, ORIGINAL_TEXTS_DIR)
@@ -130,22 +129,13 @@ def create_dataset_element(path_to_dataset, save_name='unnamend'):
         "noise" : mode,
         "metrics" : {},
     }
-
-    '''path_to_jsons = os.path.join(path_to_dataset, JSONS_DIR)
-    if not check_path(path_to_jsons, JSONS_DIR):
-        return
-
-    save_json_name = save_name + '.json';
-    path_to_json = os.path.join(path_to_jsons, save_json_name)
-    with open(path_to_json, 'w', encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)'''
-    
+   
     return data
 
 # synthetic dataset generation
+COUNT_OF_DATASET_ELEMENTS = 1000
+SLEEP_TIME = 0.15 # because fish-text.ru could ban, min: 0.1
 if __name__ == "__main__":
-    log.Warning("#"*100)
-
     path_to_dataset = "dataset"
     check_path(path_to_dataset, path_to_dataset) #? KEKW
  

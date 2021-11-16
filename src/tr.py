@@ -6,6 +6,7 @@ import os
 import re
 import string
 import sys
+import time
 
 import cv2
 import fastwer
@@ -26,13 +27,14 @@ JSON = '.json'
 SUCCESS = 0
 FAILURE = 1
 
+LEGACY = 0
+LSTM = 1
+
 DATASET_JSON = 'dataset_info.json'
 RECOGNIZED_DIR = 'recognized_text'
 ROTATED_IMAGES_DIR = 'rotated_images'
-TESSERACT_EXEC = "Tesseract-OCR\\Tesseract-OCR v5\\tesseract.exe"
 
 log = Logger(logfile=f'{__file__}.log')
-pytesseract.pytesseract.tesseract_cmd = TESSERACT_EXEC
 
 def check_path(path):
     if not os.path.isdir(path):
@@ -64,6 +66,9 @@ def recognize_function(path_to_dataset, data, detect_text_method=1, engine=0):
     """
     try:
        
+        start_time = time.perf_counter()
+
+
         output_dir = os.path.join(path_to_dataset, RECOGNIZED_DIR) #'dataset\\recognized_text'
         check_path(output_dir)
         path_to_rotated_images_dir = os.path.join(path_to_dataset, ROTATED_IMAGES_DIR) # 'dataset\\rotated_images'
@@ -76,12 +81,14 @@ def recognize_function(path_to_dataset, data, detect_text_method=1, engine=0):
 
         path = data['img_path']
         original_image = cv2.imread(path)
+
         img = cv2.cvtColor(original_image, cv2.COLOR_BGR2GRAY)
         log.Info("Convert image from RGB to GRAY")
         #print('Image Dimensions :', img.shape, type(img))
 
-        blur = cv2.GaussianBlur(img, (3, 3), sigmaX=1)
-        #blur = cv2.medianBlur(img, 3)
+        blur = cv2.GaussianBlur(img, (3, 3), sigmaX=1) # 
+        #blur = cv2.medianBlur(img, 3) # 
+        # делать ли эрозию? 
         ret1, th1 = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
         mask = cv2.inRange(blur, 0, 150) #маска для инверсии
@@ -89,7 +96,7 @@ def recognize_function(path_to_dataset, data, detect_text_method=1, engine=0):
         coords = np.column_stack(np.where(mask > 0))
 
         #поворот изображения
-        th2 = cv2.bitwise_not(th1)
+        th2 = cv2.bitwise_not(th1) # инвертирование
         thresh = cv2.threshold(th2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
         ##
@@ -153,12 +160,21 @@ def recognize_function(path_to_dataset, data, detect_text_method=1, engine=0):
         #cv2.imshow('Original with GBlur+threshhold', th1)
         #cv2.imshow("Rotated", rotated)
 
-        #распознать текст
-        config = f"--oem {engine} --psm 6"
+        #РАСПОЗВНОВАНИЕ
+
+        # 0 = Original Tesseract only.
+        # 1 = Neural nets LSTM only.
+
+        if engine==LEGACY:
+            engine_type = 'Legacy'
+        elif engine==LSTM:
+            engine_type = 'LSTM'
+
+        config = f"--oem {engine} --psm 6" # psm==6 - block of text
         log.Info("Config(tesseract) for recognition: " + config)
         recognized = pytesseract.image_to_string(rotated, lang='rus', config=config)
 
-        filename = data["id"] + TXT
+        filename = f"{data['id']}-{engine_type}{TXT}"
         path_to_savefile = os.path.join(output_dir, filename)
         log.Info("Writing recognized text to a directory")
         with open(path_to_savefile, 'w', encoding='utf-8') as f:
@@ -173,18 +189,13 @@ def recognize_function(path_to_dataset, data, detect_text_method=1, engine=0):
 
         log.Info(f'Metrics: WER: {wer0} CER: {cer0}; lenghts: original = {len(orig_text)}, recognized = {len(rec_text)}')
 
-        engine_type = 'baseline'
-        
-        # genius's switch
-        if engine==1:
-            pass
-        elif engine==2:
-            pass
-        elif engine==3:
-            pass
-
         ret = { engine_type : { 'wer' : wer0, 'cer' : cer0 } }
         log.Info(f'return: {ret}')
+
+        end_time = time.perf_counter() - start_time
+
+        log.Info(f"single element processing time: {end_time} sec")
+
         return ret
 
 
@@ -192,28 +203,50 @@ def recognize_function(path_to_dataset, data, detect_text_method=1, engine=0):
     #    log.Error(f'{e.__class__}: {e.__str__}')
     except Exception as e:
         log.Error(f'{e.__class__}: {e.__str__}')
+        sys.exit(1)
 
-def main():
-    log.Warning("#"*100)
+def conversion(sec):
+   sec_value = sec % (24 * 3600)
+   hour_value = sec_value // 3600
+   sec_value %= 3600
+   mins = sec_value // 60
+   sec_value %= 60
+   return f"{hour_value}h:{mins}m"
+
+def main(engine=LSTM):
+
+    # если используем старый движок
+    if engine==LEGACY:
+        TESSERACT_EXEC = "Tesseract-OCR\\Tesseract-OCR-5-legacy\\tesseract.exe"
+    # если используем лстам
+    elif engine==LSTM:
+        TESSERACT_EXEC = "Tesseract-OCR\\Tesseract-OCR-5-lstm-best\\tesseract.exe"
+    else:
+        raise
+
+    pytesseract.pytesseract.tesseract_cmd = TESSERACT_EXEC
     log.Info('pytesseract var. : ' + str(pytesseract.get_tesseract_version()))
 
     path_to_dataset = 'dataset'
     dataset_info_path = os.path.join(path_to_dataset, DATASET_JSON)
+
     log.Info(dataset_info_path)
 
     with open(dataset_info_path, 'r', encoding='utf-8') as f:
         dataset_info = json.load(f)
 
+    st = time.perf_counter()
+
     for element in dataset_info:
         log.Info(f'Current element: {element}')
-        metrics = recognize_function(path_to_dataset, element, detect_text_method=1, engine=0)
+        metrics = recognize_function(path_to_dataset, element, detect_text_method=1, engine=engine)
         element["metrics"].update(metrics)
 
-    log.Info(dataset_info)
+    log.Info(f"Total time: {conversion(time.perf_counter() - st)}")
 
     with open(dataset_info_path, 'w', encoding='utf-8') as f:
         json.dump(dataset_info, f, indent=4, ensure_ascii=False)
 
 if __name__ == '__main__':
-    main()
+    main(engine=LEGACY)
     del log
