@@ -6,19 +6,22 @@ log = Logger(logfile=f'{__file__}.log')
 
 DATASET = 'dataset'
 DATASET_JSON = 'dataset_info.json'
+DATASET_JSON_AA = 'dataset_info_angle_analyze.json'
+
+AA = False
 
 WERs = []
 CERs = []
 
-def get_metrics(engine='Legacy'):
+def get_metrics(engine='Legacy', osd='tesseract_osd'):
     # читаем файл с данными по распознованию
-    with open(os.path.join(DATASET, DATASET_JSON), "r", encoding="utf-8") as f:
+    with open(os.path.join(DATASET, DATASET_JSON if not AA else DATASET_JSON_AA), "r", encoding="utf-8") as f:
         file_data = json.load(f)
     
     try:
         for data in file_data:
-            WERs.append(data['metrics'][engine]['wer'])
-            CERs.append(data['metrics'][engine]['cer'])
+            WERs.append(data['metrics'][engine][osd]['wer'])
+            CERs.append(data['metrics'][engine][osd]['cer'])
     except KeyError as ke:
         log.Info(f'unknown key : {str(ke)}')
         sys.exit(1)
@@ -27,9 +30,10 @@ def main():
     # engine_type = 'Legacy'
     # engine_type = 'LSTM'
     for engine in ['Legacy', 'LSTM']:
-        get_metrics(engine)
-        log.Info(f"{engine}: mean WER: {np.mean(WERs)}")
-        log.Info(f"{engine}: mean CER: {np.mean(CERs)}")
+        for osd in ['tesseract_osd', 'my_osd']:
+            get_metrics(engine, osd)
+            log.Info(f"{engine}, {osd}: mean WER: {np.mean(WERs)}")
+            log.Info(f"{engine}, {osd}: mean CER: {np.mean(CERs)}")
 
 if __name__ == '__main__':
     main()
