@@ -8,7 +8,7 @@ DATASET = 'dataset'
 DATASET_JSON = 'dataset_info.json'
 DATASET_JSON_AA = 'dataset_info_angle_analyze.json'
 
-AA = False
+AA = True
 
 WERs = []
 CERs = []
@@ -17,7 +17,8 @@ def get_metrics(engine='Legacy', osd='tesseract_osd'):
     # читаем файл с данными по распознованию
     with open(os.path.join(DATASET, DATASET_JSON if not AA else DATASET_JSON_AA), "r", encoding="utf-8") as f:
         file_data = json.load(f)
-    
+    del WERs[:]
+    del CERs[:]
     try:
         for data in file_data:
             WERs.append(data['metrics'][engine][osd]['wer'])
@@ -35,5 +36,19 @@ def main():
             log.Info(f"{engine}, {osd}: mean WER: {np.mean(WERs)}")
             log.Info(f"{engine}, {osd}: mean CER: {np.mean(CERs)}")
 
+
+def aa_analysis():
+    for engine in ['Legacy', 'LSTM']:
+        get_metrics(engine, 'tesseract_osd')
+
+        log.Info(f"{engine}: WER")
+        for e in WERs:
+            log.Info(f"{e:.4f}")
+
+        log.Info(f"{engine}: CER")
+        for e in CERs:
+            log.Info(f"{e:.4f}")
+
 if __name__ == '__main__':
-    main()
+    #main()
+    aa_analysis()
